@@ -1,8 +1,20 @@
 import { GoogleGenAI, Type, FunctionDeclaration, Chat } from "@google/genai";
 import { DOCTOR_NAME, ADDRESS } from "../constants";
 
-// Initialize the API client
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to lazy-load the client.
+// This ensures the app loads (GUI renders) even if the API Key isn't set yet.
+// It will only error when you actually try to use the chat.
+let aiClient: GoogleGenAI | null = null;
+
+const getAiClient = () => {
+  if (!aiClient) {
+    // We provide a fallback string to ensure the constructor doesn't throw immediately 
+    // if process.env.API_KEY is undefined during the initial load.
+    const apiKey = process.env.API_KEY || ""; 
+    aiClient = new GoogleGenAI({ apiKey });
+  }
+  return aiClient;
+};
 
 const bookingTool: FunctionDeclaration = {
   name: "bookAppointment",
@@ -60,7 +72,7 @@ If the user describes symptoms of a life-threatening emergency (e.g., severe che
 `;
 
 export const createChatSession = (): Chat => {
-  return ai.chats.create({
+  return getAiClient().chats.create({
     model: 'gemini-2.5-flash',
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
