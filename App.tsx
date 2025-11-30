@@ -3,30 +3,34 @@ import Header from './components/Header';
 import WhatsAppButton from './components/WhatsAppButton';
 import Viewer360 from './components/Viewer360';
 import AIModal from './components/AIModal';
-import { SERVICES, TESTIMONIALS, FAQS, DOCTOR_NAME, ADDRESS, IMAGES, DOCTOR_TITLE, DOCTOR_QUALIFICATIONS, PHONE_NUMBER, GOOGLE_MAPS_EMBED_URL } from './constants';
+import TestimonialsModal from './components/TestimonialsModal';
+import { SERVICES, TESTIMONIALS as INITIAL_TESTIMONIALS, FAQS, DOCTOR_NAME, ADDRESS, IMAGES, DOCTOR_TITLE, DOCTOR_QUALIFICATIONS, PHONE_NUMBER, GOOGLE_MAPS_EMBED_URL } from './constants';
 import { ChevronDown, ChevronUp, MapPin, Clock, Phone, ArrowRight, Star, Video, MessageSquare, CheckCircle, Calendar, HeartPulse, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Testimonial } from './types';
 
 const App: React.FC = () => {
   const [openFaqId, setOpenFaqId] = useState<number | null>(null);
   const [is360Open, setIs360Open] = useState(false);
   const [isAIOpen, setIsAIOpen] = useState(false);
+  const [isTestimonialsModalOpen, setIsTestimonialsModalOpen] = useState(false);
+  const [testimonials, setTestimonials] = useState<Testimonial[]>(INITIAL_TESTIMONIALS);
   const [formStatus, setFormStatus] = useState<'idle' | 'submitting' | 'success'>('idle');
   const [testimonialIndex, setTestimonialIndex] = useState(0);
 
   // Auto-scroll testimonials
   useEffect(() => {
     const interval = setInterval(() => {
-      setTestimonialIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+      setTestimonialIndex((prev) => (prev + 1) % testimonials.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [testimonials.length]);
 
   const nextTestimonial = () => {
-    setTestimonialIndex((prev) => (prev + 1) % TESTIMONIALS.length);
+    setTestimonialIndex((prev) => (prev + 1) % testimonials.length);
   };
 
   const prevTestimonial = () => {
-    setTestimonialIndex((prev) => (prev - 1 + TESTIMONIALS.length) % TESTIMONIALS.length);
+    setTestimonialIndex((prev) => (prev - 1 + testimonials.length) % testimonials.length);
   };
 
   const toggleFaq = (index: number) => {
@@ -44,12 +48,26 @@ const App: React.FC = () => {
     }, 1500);
   };
 
+  const handleAddReview = (newReview: Omit<Testimonial, 'id'>) => {
+    const review: Testimonial = {
+      ...newReview,
+      id: Date.now().toString()
+    };
+    setTestimonials(prev => [review, ...prev]);
+  };
+
   return (
     <div className="font-sans text-gray-800 bg-white">
       <Header />
       <WhatsAppButton />
       <Viewer360 isOpen={is360Open} onClose={() => setIs360Open(false)} />
       <AIModal isOpen={isAIOpen} onClose={() => setIsAIOpen(false)} />
+      <TestimonialsModal 
+        isOpen={isTestimonialsModalOpen} 
+        onClose={() => setIsTestimonialsModalOpen(false)}
+        testimonials={testimonials}
+        onAddReview={handleAddReview}
+      />
 
       {/* Hero Section */}
       <section id="home" className="relative h-screen min-h-[600px] flex items-center justify-center overflow-hidden">
@@ -211,18 +229,14 @@ const App: React.FC = () => {
                   className="flex transition-transform duration-700 ease-in-out" 
                   style={{ transform: `translateX(-${testimonialIndex * (100 / (window.innerWidth >= 1024 ? 3 : window.innerWidth >= 768 ? 2 : 1))}%)` }}
                 >
-                  {/* To ensure infinite-like or easier logic, we map through testimonials. 
-                      Note: The translation logic above is simplified for the example. 
-                      A robust responsive transform would usually use state for items per slide.
-                      Here we assume simple sliding. */}
-                  {TESTIMONIALS.map((t) => (
+                  {testimonials.map((t) => (
                     <div key={t.id} className="w-full md:w-1/2 lg:w-1/3 flex-shrink-0 px-4">
                       <div className="bg-white/5 backdrop-blur-md p-8 rounded-2xl border border-white/10 hover:bg-white/10 transition duration-300 h-full flex flex-col justify-between">
                         <div>
                           <div className="flex gap-1 text-yellow-400 mb-6">
                             {[...Array(t.rating)].map((_, i) => <Star key={i} size={18} fill="currentColor" />)}
                           </div>
-                          <p className="text-gray-100 text-lg italic mb-8 leading-relaxed">"{t.text}"</p>
+                          <p className="text-gray-100 text-lg italic mb-8 leading-relaxed line-clamp-4">"{t.text}"</p>
                         </div>
                         <div className="flex items-center gap-4">
                           <div className="w-12 h-12 bg-accent-500 rounded-full flex items-center justify-center font-bold text-xl flex-shrink-0">
@@ -243,11 +257,11 @@ const App: React.FC = () => {
 
              {/* Navigation Dots */}
              <div className="flex justify-center mt-8 gap-2">
-               {TESTIMONIALS.map((_, i) => (
+               {testimonials.slice(0, Math.min(5, testimonials.length)).map((_, i) => (
                  <button
                    key={i}
                    onClick={() => setTestimonialIndex(i)}
-                   className={`w-3 h-3 rounded-full transition-all ${i === testimonialIndex ? 'bg-accent-500 w-8' : 'bg-white/30 hover:bg-white/50'}`}
+                   className={`w-3 h-3 rounded-full transition-all ${i === testimonialIndex % 5 ? 'bg-accent-500 w-8' : 'bg-white/30 hover:bg-white/50'}`}
                    aria-label={`Go to testimonial ${i + 1}`}
                  />
                ))}
@@ -255,8 +269,11 @@ const App: React.FC = () => {
 
               {/* View All Button */}
               <div className="text-center mt-12">
-                <button className="bg-transparent hover:bg-white/10 text-white border border-white/30 px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider transition flex items-center gap-2 mx-auto">
-                  View All Testimonials
+                <button 
+                  onClick={() => setIsTestimonialsModalOpen(true)}
+                  className="bg-transparent hover:bg-white/10 text-white border border-white/30 px-8 py-3 rounded-full font-bold text-sm uppercase tracking-wider transition flex items-center gap-2 mx-auto"
+                >
+                  View All & Add Review
                   <ArrowRight size={16} />
                 </button>
               </div>
